@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+#from ase.io import read,write
+import os
+from oxrkit import OXR
+from collections import OrderedDict
+
+logdict={'o':'o/opt.log',
+        'oh':'oh/opt.log',
+        'ooh':'ooh/opt.log',
+        'sur':'sur/opt.log'
+        }
+
+h2_ref= -31.72280044
+h2o_ref= -490.3858375
+
+ref={'h2':h2_ref,
+    'h2o':h2o_ref,
+    'o2': 2*(h2o_ref - h2_ref),
+    'oh':h2o_ref-0.5*h2_ref,
+    'ooh': 2*h2o_ref - 1.5* h2_ref,
+    }
+
+##this function read energy from sur, o*, oh*, ooh*, custumize for your own purpose. 
+def get_dfte(logfile):
+    if not os.path.exists(logfile):
+        print str(logfile)+'\t'+'not exists'
+    else:
+        try:
+            with open(logfile,'r') as fh:
+                lines= fh.readlines()
+                lastline = [  x for x in lines if 'BFGS' in x][-1]
+                oute=lastline.strip().split()[-2]
+                outf=lastline.strip().split()[-1]
+                fh.close()
+        except:
+            print str(path)+'\n'+'failed to read results'
+
+#        if outf
+        return float(oute)
+##############################################################
+
+
+try:
+    e_s=get_dfte(logdict['sur'])
+    e_o=get_dfte(logdict['o'])
+    e_oh=get_dfte(logdict['oh'])
+except:
+    print " calculation not fully converged, continuing"
+    exit()
+
+eb_o = e_o - e_s - 0.5*ref['o2']
+eb_oh = e_oh - e_s - ref['oh']
+
+try:
+    e_ooh=get_dfte(logdict['ooh'])
+    eb_ooh = e_ooh - e_s - ref['ooh']
+    ooh_tag = False
+except:
+    print 'OOH calculation failed'
+    eb_ooh = 1.0* eb_oh + 3.2
+    ooh_tag=True
+
+mpath=os.getcwd()
+eb_dict={'eboh':eb_oh,  
+        'ebo':eb_o,
+        'ebooh':eb_ooh,
+        'name':mpath,
+        'scaling':ooh_tag
+        }
+
+eb_dict=OrderedDict(sorted(eb_dict.items(), key=lambda t: t[1]))
+react=OXR(eb_dict)
+gads=react.get_gads()
+gads=OrderedDict(sorted(gads.items(), key=lambda t: t[1]))
+
+print "OER overpotential = " + str(react.get_op_oer())
+print "ORR overpotential = "+ str(react.get_op_orr())
+print "Surface resting state is termianted by " + str(react.get_ads())
+print "OXR Free Energies: "
+for k, v in gads.items():
+    print "{0} = {1}".format(k,v)
+
+outfh=open('oxr.log','w')
+outfh.write("OER overpotential = {} \n".format(react.get_op_oer()))
+outfh.write("ORR overpotential = {} \n".format(react.get_op_orr()))
+for key, value in eb_dict.items():
+    outfh.write("{0}= {1} \n".format(key, value))
+outfh.write("Surface resting state is termianted by {} \n".format(react.get_ads()))
+
+outfh.write("OXR Free Energies:\n")
+for key, value in gads.items():
+    outfh.write("\t{0} = {1} \n".format(key, value))
+outfh.close()
+
