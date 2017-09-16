@@ -21,7 +21,7 @@ tar=81
 try:
     tar=int(sys.argv[1])
 except IndexError:
-    print "default index: 81"
+    print "default index: "+ str(tar)
 
 tarpos=p0[tar].position
 
@@ -45,10 +45,11 @@ for key in ads_dict.keys():
     if not os.path.isdir(cwd+'/'+key):
         os.mkdir(cwd+'/'+key)
     write(cwd+'/'+key+'/init.traj', ads_dict[key])
-    copyfile('/home/liangzha/STR/Ru-STO-alloy/.script/esp.sub', cwd+'/'+key+'/esp.sub')
     if submit and host == 'chestnut-login.internal':
-        os.chdir(cwd+'/'+key)
-        os.system('sbatch esp.sub')
+        copyfile('/home/liangzha/STR/Ru-STO-alloy/.script/esp.sub', cwd+'/'+key+'/esp.sub')
+        if submit:
+            os.chdir(cwd+'/'+key)
+            os.system('sbatch esp.sub')
 
 
 os.chdir(cwd)
